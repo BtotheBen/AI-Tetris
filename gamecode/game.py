@@ -34,13 +34,13 @@ class Game():
     
     def score_update(self, num_lines):
         self.current_score += SCORE_DATA[num_lines] * self.current_level
-
         if self.current_score / 100 > self.current_level:
             self.current_level += 1
-            self.down_speed *= 0.8
+            self.down_speed = LEVEL_DATA[self.current_level]
+
             self.down_speed_fast = self.down_speed * 0.3
             self.timers['vertical move'].duration = self.down_speed
-        self.update_score(self.current_score, self.current_level)
+        self.update_score(self.current_score, max(self.current_level, 10))
 
     def check_game_over(self):
         for block in self.tet.blocks:
