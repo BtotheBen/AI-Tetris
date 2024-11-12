@@ -46,20 +46,25 @@ class Main():
         return new_map
 
     def run(self, action = 0):
+        #Refresh Screen 
+        self.display_surface.fill("black")
+
+        #Run Objects
+        self.game.run(action)
+        self.score.run()
+
+        self.get_state()
+
+        #Basic Update
+        pygame.display.update()
+        self.clock.tick()
+    
+    def start(self):
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     exit()
-
-            #Refresh Screen 
-            self.display_surface.fill("black")
-
-            #Run Objects
-            self.game.run(action)
-            self.score.run()
-
-            self.get_state()
 
             #Basic Update
             pygame.display.update()
@@ -67,4 +72,4 @@ class Main():
 
 if __name__ == '__main__':
     main = Main()
-    main.run()
+    main.start()

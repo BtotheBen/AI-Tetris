@@ -22,12 +22,11 @@ class Game():
         self.down_speed = UPDATE_START_SPEED
         self.down_speed_fast = UPDATE_START_SPEED * 0.3
 
-        self.timers = {
-            'vertical move': Timer(UPDATE_START_SPEED, True, self.move_down),
+        self.timers = { #''' 'vertical move': Timer(UPDATE_START_SPEED, True, self.move_down), ''' #only used when playing with keyboard
             'horizontal move': Timer(MOVE_WAIT_TIME),
             'rotate': Timer(ROTATE_WAIT_TIME)
         }
-        self.timers['vertical move'].activate()
+        #self.timers['vertical move'].activate()
 
         self.current_level = 1
         self.current_score = 0
@@ -128,6 +127,7 @@ class Game():
         self.sprites.update()
 
         self.input(action)
+        self.move_down()
 
         self.surface.fill("black")
         self.sprites.draw(self.surface)

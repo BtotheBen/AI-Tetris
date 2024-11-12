@@ -8,6 +8,7 @@ n_observations: int = 5
 def reset() -> torch.Tensor:
     global m 
     m = main.Main()
+    m.start()
     
 def get_state():
     return m.get_state()
