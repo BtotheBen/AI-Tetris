@@ -21,19 +21,29 @@ class Main():
         self.next_shape.append(random.choice(list(TETS.keys())))
         return next_shape
 
+    #debugging function
+    def print_map(self, m):
+        print("---------")
+        for x in m:
+            print(x)
+
     def update_score(self, score, level):
         self.score.score = score
         self.score.level = level
 
     def get_state(self):
-        map = self.game.map
+        new_map = [[0 for x in range(COLUMNS)] for y in range(ROWS)]
+        for row_index, row in enumerate(self.game.map):
+            for colo_index, point in enumerate(row):
+                if not point == 0:
+                    new_map[row_index][colo_index] = 2
+    
         for block in self.game.tet.blocks:
-                map[int(block.pos.y)][int(block.pos.x)] = 1
+            new_map[int(block.pos.y)][int(block.pos.x)] = 1
         
-        if self.game.map == map:
-            print("gleich")
+        # self.print_map(new_map)
 
-        return map
+        return new_map
 
     def run(self, action = 0):
         while True:
@@ -49,7 +59,7 @@ class Main():
             self.game.run(action)
             self.score.run()
 
-            #self.get_state()
+            self.get_state()
 
             #Basic Update
             pygame.display.update()

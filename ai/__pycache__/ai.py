@@ -253,7 +253,7 @@ LR = 1e-4
 # Get number of actions from gym action space
 n_actions = tetris.n_actions
 # Get the number of state observations
-n_observations = tetris.n_observatins
+n_observations = tetris.n_observations
 
 policy_net = DQN(n_observations, n_actions).to(device)
 target_net = DQN(n_observations, n_actions).to(device)

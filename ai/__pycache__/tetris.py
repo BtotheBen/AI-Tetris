@@ -1,8 +1,8 @@
 import torch
-import gamecode.main as main
+import main
 
 n_actions: int = 5  # number of actions that can be taken each frame
-n_observatins: int
+n_observations: int
 
 # reset the game and return the base state
 def reset() -> torch.Tensor:
