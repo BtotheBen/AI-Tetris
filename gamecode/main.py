@@ -25,7 +25,17 @@ class Main():
         self.score.score = score
         self.score.level = level
 
-    def run(self):
+    def get_state(self):
+        map = self.game.map
+        for block in self.game.tet.blocks:
+                map[int(block.pos.y)][int(block.pos.x)] = 1
+        
+        if self.game.map == map:
+            print("gleich")
+
+        return map
+
+    def run(self, action = 0):
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -36,8 +46,10 @@ class Main():
             self.display_surface.fill("black")
 
             #Run Objects
-            self.game.run()
+            self.game.run(action)
             self.score.run()
+
+            #self.get_state()
 
             #Basic Update
             pygame.display.update()

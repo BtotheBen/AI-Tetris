@@ -48,7 +48,6 @@ class Game():
                 print(f"You reached the {self.current_level} level with a score of {self.current_score}!")
                 exit()
 
-
     def create_new_tet(self):
         self.check_game_over()
         self.check_finished_rows()
@@ -71,7 +70,7 @@ class Game():
             y = row * CELL_SIZE
             pygame.draw.line(self.surface, "white", (0, y), (GAME_WIDTH, y), 1)
 
-    def input(self):
+    def input(self, action):
         keys = pygame.key.get_pressed()
         if not self.timers['horizontal move'].active:
             if keys[pygame.K_LEFT]:
@@ -92,6 +91,14 @@ class Game():
             if keys[pygame.K_UP]:
                 self.tet.rotate()
                 self.timers['rotate'].activate()
+        if action == 0:
+            pass
+        elif action == 1:
+            self.tet.move_horizontal(-1)
+        elif action == 2:
+            self.tet.move_horizontal(1)
+        elif action == 3:
+            self.tet.rotate()
 
 
     def check_finished_rows(self):
@@ -116,11 +123,12 @@ class Game():
 
             self.score_update(len(delete_rows))
 
-    def run(self) -> None:
+    def run(self, action) -> None:
         self.timer_update()
         self.sprites.update()
-        self.input()
-        
+
+        self.input(action)
+
         self.surface.fill("black")
         self.sprites.draw(self.surface)
         self.draw_grid()
