@@ -2,7 +2,7 @@ import torch
 import main
 
 n_actions: int = 5  # number of actions that can be taken each frame
-n_observations: int
+n_observations: int = 5
 
 # reset the game and return the base state
 def reset() -> torch.Tensor:
