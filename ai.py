@@ -67,11 +67,13 @@ import random
 from collections import namedtuple, deque
 from itertools import count
 
-import tetris
+import tetris as tet
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+
+tetris = tet.tetrisenv()
 
 # if GPU is to be used
 device = torch.device(

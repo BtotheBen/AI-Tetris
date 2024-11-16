@@ -30,16 +30,19 @@ class Game():
 
         self.current_level = 1
         self.current_score = 0
+
+        self.cyclenumber = 0
     
     def score_update(self, num_lines):
         self.current_score += SCORE_DATA[num_lines] * self.current_level
         if self.current_score / 100 > self.current_level:
             self.current_level += 1
-            self.down_speed = LEVEL_DATA[self.current_level]
-
-            self.down_speed_fast = self.down_speed * 0.3
-            self.timers['vertical move'].duration = self.down_speed
-        self.update_score(self.current_score, max(self.current_level, 10))
+            #self.current_level = min(self.current_level) #Making the max level 10
+            
+            #self.down_speed = LEVEL_DATA[self.current_level]
+            #self.down_speed_fast = self.down_speed * 0.3
+            #self.timers['vertical move'].duration = self.down_speed
+        self.update_score(self.current_score, min(self.current_level, 10))
 
     def check_game_over(self):
         for block in self.tet.blocks:
@@ -58,8 +61,11 @@ class Game():
         for timer in self.timers.values():
             timer.update()
 
-    def move_down(self):
-        self.tet.move_down()
+    def move_down(self, current_frame):
+        #print(current_frame)
+        if current_frame % FRAME_SPEED == 0:
+            self.tet.move_down()
+            #print("moving down")
 
     def draw_grid(self):
         for coloumn in range(1, COLUMNS):
@@ -70,6 +76,7 @@ class Game():
             pygame.draw.line(self.surface, "white", (0, y), (GAME_WIDTH, y), 1)
 
     def input(self, action):
+        '''
         keys = pygame.key.get_pressed()
         if not self.timers['horizontal move'].active:
             if keys[pygame.K_LEFT]:
@@ -90,6 +97,8 @@ class Game():
             if keys[pygame.K_UP]:
                 self.tet.rotate()
                 self.timers['rotate'].activate()
+        '''
+            
         if action == 0:
             pass
         elif action == 1:
@@ -98,7 +107,6 @@ class Game():
             self.tet.move_horizontal(1)
         elif action == 3:
             self.tet.rotate()
-
 
     def check_finished_rows(self):
         delete_rows = []
@@ -122,13 +130,14 @@ class Game():
 
             self.score_update(len(delete_rows))
 
-    def run(self, action) -> None:
+    def run(self, action, current_frame) -> None:
         self.timer_update()
         self.sprites.update()
 
         self.input(action)
-        self.move_down()
+        self.move_down(current_frame)
 
+        self.sprites.update()
         self.surface.fill("black")
         self.sprites.draw(self.surface)
         self.draw_grid()

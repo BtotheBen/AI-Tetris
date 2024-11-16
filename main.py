@@ -15,6 +15,8 @@ class Main():
 
         self.game = Game(self.get_next_shape, self.update_score)
         self.score = Score()
+
+        self.current_frame = 0
     
     def get_next_shape(self):
         next_shape = self.next_shape.pop(0)
@@ -39,18 +41,23 @@ class Main():
                     new_map[row_index][colo_index] = 2
     
         for block in self.game.tet.blocks:
-            new_map[int(block.pos.y)][int(block.pos.x)] = 1
+            if int(block.pos.y) >= 0:
+                new_map[int(block.pos.y)][int(block.pos.x)] = 1
         
-        # self.print_map(new_map)
+        self.print_map(new_map)
+        print(self.next_shape)
 
-        return new_map
+        return new_map, self.next_shape, self.score.score
 
     def run(self, action = 0):
         #Refresh Screen 
         self.display_surface.fill("black")
 
         #Run Objects
-        self.game.run(action)
+        self.game.run(action, self.current_frame)
+        self.current_frame += 1
+        if self.current_frame == FRAME_SPEED * 100:
+            self.current_frame = FRAME_SPEED
         self.score.run()
 
         self.get_state()
@@ -65,6 +72,17 @@ class Main():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     exit()
+
+                #TESTING FOR RUNNING BY ACTION
+                keys = pygame.key.get_pressed()
+                if keys[pygame.K_DOWN]:
+                    self.run(0)
+                elif keys[pygame.K_LEFT]:
+                    self.run(1)
+                elif keys[pygame.K_RIGHT]:
+                    self.run(2)
+                elif keys[pygame.K_UP]:
+                    self.run(3)
 
             #Basic Update
             pygame.display.update()
