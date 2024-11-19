@@ -44,12 +44,24 @@ class Main():
             if int(block.pos.y) >= 0:
                 new_map[int(block.pos.y)][int(block.pos.x)] = 1
         
-        self.print_map(new_map)
-        print(self.next_shape)
+        #self.print_map(new_map)
+        #print(self.next_shape)
 
-        return new_map, self.next_shape, self.score.score
+        next_shapes_index = []
+        for next_shape in self.next_shape:
+            next_shapes_index.append(TETS[next_shape]['index'])
+        #print(next_shapes_index)
+
+        ret = []
+        for _ in new_map: ret.extend(_)
+        ret.extend(next_shapes_index)
+        ret.append(self.score.score)
+
+        return ret
 
     def run(self, action = 0):
+        prev_score = self.score.score
+
         #Refresh Screen 
         self.display_surface.fill("black")
 
@@ -65,8 +77,14 @@ class Main():
         #Basic Update
         pygame.display.update()
         self.clock.tick()
+        return 10 + self.score.score - prev_score
     
     def start(self):
+        #Basic Update
+        self.clock.tick()
+        pygame.display.update()
+        return
+
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -74,19 +92,16 @@ class Main():
                     exit()
 
                 #TESTING FOR RUNNING BY ACTION
-                keys = pygame.key.get_pressed()
-                if keys[pygame.K_DOWN]:
-                    self.run(0)
-                elif keys[pygame.K_LEFT]:
-                    self.run(1)
-                elif keys[pygame.K_RIGHT]:
-                    self.run(2)
-                elif keys[pygame.K_UP]:
-                    self.run(3)
+                # keys = pygame.key.get_pressed()
+                # if keys[pygame.K_DOWN]:
+                #     self.run(0)
+                # elif keys[pygame.K_LEFT]:
+                #     self.run(1)
+                # elif keys[pygame.K_RIGHT]:
+                #     self.run(2)
+                # elif keys[pygame.K_UP]:
+                #     self.run(3)
 
-            #Basic Update
-            pygame.display.update()
-            self.clock.tick()
 
 if __name__ == '__main__':
     main = Main()

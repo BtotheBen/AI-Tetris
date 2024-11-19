@@ -281,7 +281,7 @@ def select_action(state):
             # found, so we pick action with the larger expected reward.
             return policy_net(state).max(1).indices.view(1, 1)
     else:
-        return torch.tensor([[env.action_space.sample()]], device=device, dtype=torch.long)
+        return torch.tensor([[random.randint(0, n_actions-1)]], device=device, dtype=torch.long)
 
 
 ######################################################################
@@ -369,16 +369,22 @@ if torch.cuda.is_available() or torch.backends.mps.is_available():
 else:
     num_episodes = 50
 
+
+
 for i_episode in range(num_episodes):
     # Initialize the environment and get its state
-    tetris.reset()
-    state = tetris.get_state()
-    state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
+    state = tetris.reset()
+    #state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
+
     for t in count():
+        state = tetris.get_state()
+
         action = select_action(state)
-        observation, reward, terminated = tetris.step(action.item())
+        print(action)
+        observation, reward = tetris.step(action.item())
         reward = torch.tensor([reward], device=device)
 
+        terminated = False
         if terminated:
             next_state = None
         else:
