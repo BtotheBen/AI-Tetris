@@ -1,6 +1,6 @@
-import pygame 
+import pygame
 
-# Game Size 
+# Game Size
 COLUMNS = 10
 ROWS = 20
 CELL_SIZE = 40
@@ -11,7 +11,7 @@ PADDING = 20
 WINDOW_WIDTH = PADDING + GAME_WIDTH + PADDING + 10*PADDING + PADDING
 WINDOW_HEIGHT = PADDING + GAME_HEIGHT + PADDING
 
-# Game Data 
+# Game Data
 FPS = 60
 UPDATE_START_SPEED = 600
 MOVE_WAIT_TIME = 100

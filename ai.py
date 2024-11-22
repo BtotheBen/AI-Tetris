@@ -1,115 +1,26 @@
-# -*- coding: utf-8 -*-
-"""
-Reinforcement Learning (DQN) Tutorial
-=====================================
-**Author**: `Adam Paszke <https://github.com/apaszke>`_
-            `Mark Towers <https://github.com/pseudo-rnd-thoughts>`_
-
-
-This tutorial shows how to use PyTorch to train a Deep Q Learning (DQN) agent
-on the CartPole-v1 task from `Gymnasium <https://gymnasium.farama.org>`__.
-
-You might find it helpful to read the original `Deep Q Learning (DQN) <https://arxiv.org/abs/1312.5602>`__ paper
-
-**Task**
-
-The agent has to decide between two actions - moving the cart left or
-right - so that the pole attached to it stays upright. You can find more
-information about the environment and other more challenging environments at
-`Gymnasium's website <https://gymnasium.farama.org/environments/classic_control/cart_pole/>`__.
-
-.. figure:: /_static/img/cartpole.gif
-   :alt: CartPole
-
-   CartPole
-
-As the agent observes the current state of the environment and chooses
-an action, the environment *transitions* to a new state, and also
-returns a reward that indicates the consequences of the action. In this
-task, rewards are +1 for every incremental timestep and the environment
-terminates if the pole falls over too far or the cart moves more than 2.4
-units away from center. This means better performing scenarios will run
-for longer duration, accumulating larger return.
-
-The CartPole task is designed so that the inputs to the agent are 4 real
-values representing the environment state (position, velocity, etc.).
-We take these 4 inputs without any scaling and pass them through a
-small fully-connected network with 2 outputs, one for each action.
-The network is trained to predict the expected value for each action,
-given the input state. The action with the highest expected value is
-then chosen.
-
-
-**Packages**
-
-
-First, let's import needed packages. Firstly, we need
-`gymnasium <https://gymnasium.farama.org/>`__ for the environment,
-installed by using `pip`. This is a fork of the original OpenAI
-Gym project and maintained by the same team since Gym v0.19.
-If you are running this in Google Colab, run:
-
-.. code-block:: bash
-
-   %%bash
-   pip3 install gymnasium[classic_control]
-
-We'll also use the following from PyTorch:
-
--  neural networks (``torch.nn``)
--  optimization (``torch.optim``)
--  automatic differentiation (``torch.autograd``)
-
-"""
-
 import math
 import random
 from collections import namedtuple, deque
 from itertools import count
 
-import tetris as tet
+import tetris
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
-tetris = tet.tetrisenv()
-
-# if GPU is to be used
 device = torch.device(
     "cuda" if torch.cuda.is_available() else
     "mps" if torch.backends.mps.is_available() else
     "cpu"
 )
 
-
-######################################################################
-# Replay Memory
-# -------------
-#
-# We'll be using experience replay memory for training our DQN. It stores
-# the transitions that the agent observes, allowing us to reuse this data
-# later. By sampling from it randomly, the transitions that build up a
-# batch are decorrelated. It has been shown that this greatly stabilizes
-# and improves the DQN training procedure.
-#
-# For this, we're going to need two classes:
-#
-# -  ``Transition`` - a named tuple representing a single transition in
-#    our environment. It essentially maps (state, action) pairs
-#    to their (next_state, reward) result, with the state being the
-#    screen difference image as described later on.
-# -  ``ReplayMemory`` - a cyclic buffer of bounded size that holds the
-#    transitions observed recently. It also implements a ``.sample()``
-#    method for selecting a random batch of transitions for training.
-#
-
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
 
 
 class ReplayMemory(object):
-
     def __init__(self, capacity):
         self.memory = deque([], maxlen=capacity)
 
@@ -124,83 +35,7 @@ class ReplayMemory(object):
         return len(self.memory)
 
 
-######################################################################
-# Now, let's define our model. But first, let's quickly recap what a DQN is.
-#
-# DQN algorithm
-# -------------
-#
-# Our environment is deterministic, so all equations presented here are
-# also formulated deterministically for the sake of simplicity. In the
-# reinforcement learning literature, they would also contain expectations
-# over stochastic transitions in the environment.
-#
-# Our aim will be to train a policy that tries to maximize the discounted,
-# cumulative reward
-# :math:`R_{t_0} = \sum_{t=t_0}^{\infty} \gamma^{t - t_0} r_t`, where
-# :math:`R_{t_0}` is also known as the *return*. The discount,
-# :math:`\gamma`, should be a constant between :math:`0` and :math:`1`
-# that ensures the sum converges. A lower :math:`\gamma` makes
-# rewards from the uncertain far future less important for our agent
-# than the ones in the near future that it can be fairly confident
-# about. It also encourages agents to collect reward closer in time
-# than equivalent rewards that are temporally far away in the future.
-#
-# The main idea behind Q-learning is that if we had a function
-# :math:`Q^*: State \times Action \rightarrow \mathbb{R}`, that could tell
-# us what our return would be, if we were to take an action in a given
-# state, then we could easily construct a policy that maximizes our
-# rewards:
-#
-# .. math:: \pi^*(s) = \arg\!\max_a \ Q^*(s, a)
-#
-# However, we don't know everything about the world, so we don't have
-# access to :math:`Q^*`. But, since neural networks are universal function
-# approximators, we can simply create one and train it to resemble
-# :math:`Q^*`.
-#
-# For our training update rule, we'll use a fact that every :math:`Q`
-# function for some policy obeys the Bellman equation:
-#
-# .. math:: Q^{\pi}(s, a) = r + \gamma Q^{\pi}(s', \pi(s'))
-#
-# The difference between the two sides of the equality is known as the
-# temporal difference error, :math:`\delta`:
-#
-# .. math:: \delta = Q(s, a) - (r + \gamma \max_a' Q(s', a))
-#
-# To minimize this error, we will use the `Huber
-# loss <https://en.wikipedia.org/wiki/Huber_loss>`__. The Huber loss acts
-# like the mean squared error when the error is small, but like the mean
-# absolute error when the error is large - this makes it more robust to
-# outliers when the estimates of :math:`Q` are very noisy. We calculate
-# this over a batch of transitions, :math:`B`, sampled from the replay
-# memory:
-#
-# .. math::
-#
-#    \mathcal{L} = \frac{1}{|B|}\sum_{(s, a, s', r) \ \in \ B} \mathcal{L}(\delta)
-#
-# .. math::
-#
-#    \text{where} \quad \mathcal{L}(\delta) = \begin{cases}
-#      \frac{1}{2}{\delta^2}  & \text{for } |\delta| \le 1, \\
-#      |\delta| - \frac{1}{2} & \text{otherwise.}
-#    \end{cases}
-#
-# Q-network
-# ^^^^^^^^^
-#
-# Our model will be a feed forward  neural network that takes in the
-# difference between the current and previous screen patches. It has two
-# outputs, representing :math:`Q(s, \mathrm{left})` and
-# :math:`Q(s, \mathrm{right})` (where :math:`s` is the input to the
-# network). In effect, the network is trying to predict the *expected return* of
-# taking each action given the current input.
-#
-
 class DQN(nn.Module):
-
     def __init__(self, n_observations, n_actions):
         super(DQN, self).__init__()
         self.layer1 = nn.Linear(n_observations, 128)
@@ -215,35 +50,6 @@ class DQN(nn.Module):
         return self.layer3(x)
 
 
-######################################################################
-# Training
-# --------
-#
-# Hyperparameters and utilities
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-# This cell instantiates our model and its optimizer, and defines some
-# utilities:
-#
-# -  ``select_action`` - will select an action according to an epsilon
-#    greedy policy. Simply put, we'll sometimes use our model for choosing
-#    the action, and sometimes we'll just sample one uniformly. The
-#    probability of choosing a random action will start at ``EPS_START``
-#    and will decay exponentially towards ``EPS_END``. ``EPS_DECAY``
-#    controls the rate of the decay.
-# -  ``plot_durations`` - a helper for plotting the duration of episodes,
-#    along with an average over the last 100 episodes (the measure used in
-#    the official evaluations). The plot will be underneath the cell
-#    containing the main training loop, and will update after every
-#    episode.
-#
-
-# BATCH_SIZE is the number of transitions sampled from the replay buffer
-# GAMMA is the discount factor as mentioned in the previous section
-# EPS_START is the starting value of epsilon
-# EPS_END is the final value of epsilon
-# EPS_DECAY controls the rate of exponential decay of epsilon, higher means a slower decay
-# TAU is the update rate of the target network
-# LR is the learning rate of the ``AdamW`` optimizer
 BATCH_SIZE = 128
 GAMMA = 0.99
 EPS_START = 0.9
@@ -252,9 +58,7 @@ EPS_DECAY = 1000
 TAU = 0.005
 LR = 1e-4
 
-# Get number of actions from gym action space
 n_actions = tetris.n_actions
-# Get the number of state observations
 n_observations = tetris.n_observations
 
 policy_net = DQN(n_observations, n_actions).to(device)
@@ -264,9 +68,7 @@ target_net.load_state_dict(policy_net.state_dict())
 optimizer = optim.AdamW(policy_net.parameters(), lr=LR, amsgrad=True)
 memory = ReplayMemory(10000)
 
-
 steps_done = 0
-
 
 def select_action(state):
     global steps_done
@@ -279,35 +81,18 @@ def select_action(state):
             # t.max(1) will return the largest column value of each row.
             # second column on max result is index of where max element was
             # found, so we pick action with the larger expected reward.
+
+            # TODO select first allowed move
+
             return policy_net(state).max(1).indices.view(1, 1)
     else:
         return torch.tensor([[random.randint(0, n_actions-1)]], device=device, dtype=torch.long)
-
-
-######################################################################
-# Training loop
-# ^^^^^^^^^^^^^
-#
-# Finally, the code for training our model.
-#
-# Here, you can find an ``optimize_model`` function that performs a
-# single step of the optimization. It first samples a batch, concatenates
-# all the tensors into a single one, computes :math:`Q(s_t, a_t)` and
-# :math:`V(s_{t+1}) = \max_a Q(s_{t+1}, a)`, and combines them into our
-# loss. By definition we set :math:`V(s) = 0` if :math:`s` is a terminal
-# state. We also use a target network to compute :math:`V(s_{t+1})` for
-# added stability. The target network is updated at every step with a
-# `soft update <https://arxiv.org/pdf/1509.02971.pdf>`__ controlled by
-# the hyperparameter ``TAU``, which was previously defined.
-#
 
 def optimize_model():
     if len(memory) < BATCH_SIZE:
         return
     transitions = memory.sample(BATCH_SIZE)
-    # Transpose the batch (see https://stackoverflow.com/a/19343/3343043 for
-    # detailed explanation). This converts batch-array of Transitions
-    # to Transition of batch-arrays.
+
     batch = Transition(*zip(*transitions))
 
     # Compute a mask of non-final states and concatenate the batch elements
@@ -347,56 +132,27 @@ def optimize_model():
     torch.nn.utils.clip_grad_value_(policy_net.parameters(), 100)
     optimizer.step()
 
-
-######################################################################
-#
-# Below, you can find the main training loop. At the beginning we reset
-# the environment and obtain the initial ``state`` Tensor. Then, we sample
-# an action, execute it, observe the next state and the reward (always
-# 1), and optimize our model once. When the episode ends (our model
-# fails), we restart the loop.
-#
-# Below, `num_episodes` is set to 600 if a GPU is available, otherwise 50
-# episodes are scheduled so training does not take too long. However, 50
-# episodes is insufficient for to observe good performance on CartPole.
-# You should see the model constantly achieve 500 steps within 600 training
-# episodes. Training RL agents can be a noisy process, so restarting training
-# can produce better results if convergence is not observed.
-#
-
-if torch.cuda.is_available() or torch.backends.mps.is_available():
-    num_episodes = 600
-else:
-    num_episodes = 50
-
-
-
-for i_episode in range(num_episodes):
-    # Initialize the environment and get its state
-    state = tetris.reset()
-    #state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
-
+def train_once():
+    tetris.reset()
+    state = torch.tensor(tetris.get_state(), dtype=torch.float32, device = torch.device(
+                            "cuda" if torch.cuda.is_available() else
+                            " mps" if torch.backends.mps.is_available() else
+                            "cpu"
+)).unsqueeze(0)
     for t in count():
-        state = tetris.get_state()
-
         action = select_action(state)
-        print(action)
-        observation, reward = tetris.step(action.item())
+        observation, reward, terminated = tetris.step(action.item())
         reward = torch.tensor([reward], device=device)
 
-        terminated = False
         if terminated:
             next_state = None
         else:
             next_state = torch.tensor(observation, dtype=torch.float32, device=device).unsqueeze(0)
 
-        # Store the transition in memory
         memory.push(state, action, next_state, reward)
 
-        # Move to the next state
         state = next_state
 
-        # Perform one step of the optimization (on the policy network)
         optimize_model()
 
         # Soft update of the target network's weights
@@ -410,17 +166,12 @@ for i_episode in range(num_episodes):
         if terminated:
             break
 
-print('Complete')
+def train_model(num_episodes):
+    for i_episode in range(num_episodes):
+        train_once()
 
-######################################################################
-# Here is the diagram that illustrates the overall resulting data flow.
-#
-# .. figure:: /_static/img/reinforcement_learning_diagram.jpg
-#
-# Actions are chosen either randomly or based on a policy, getting the next
-# step sample from the gym environment. We record the results in the
-# replay memory and also run optimization step on every iteration.
-# Optimization picks a random batch from the replay memory to do training of the
-# new policy. The "older" target_net is also used in optimization to compute the
-# expected Q values. A soft update of its weights are performed at every step.
-#
+if torch.cuda.is_available() or torch.backends.mps.is_available():
+    num_episodes = 600
+else:
+    num_episodes = 50
+train_model(num_episodes)

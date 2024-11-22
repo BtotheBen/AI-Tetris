@@ -1,7 +1,6 @@
 import pygame, sys, importlib
 
 from settings import *
-from timer import *
 from random import choice
 
 class Game():
@@ -18,27 +17,20 @@ class Game():
         self.map = [[0 for x in range(COLUMNS)] for y in range(ROWS)]
         self.tet = Tet(choice(list(TETS.keys())), self.sprites, self.create_new_tet, self.map)
 
-        self.down_pressed = False
         self.down_speed = UPDATE_START_SPEED
         self.down_speed_fast = UPDATE_START_SPEED * 0.3
-
-        self.timers = { #''' 'vertical move': Timer(UPDATE_START_SPEED, True, self.move_down), ''' #only used when playing with keyboard
-            'horizontal move': Timer(MOVE_WAIT_TIME),
-            'rotate': Timer(ROTATE_WAIT_TIME)
-        }
-        #self.timers['vertical move'].activate()
 
         self.current_level = 1
         self.current_score = 0
 
         self.cyclenumber = 0
-    
+
     def score_update(self, num_lines):
         self.current_score += SCORE_DATA[num_lines] * self.current_level
         if self.current_score / 100 > self.current_level:
             self.current_level += 1
             #self.current_level = min(self.current_level) #Making the max level 10
-            
+
             #self.down_speed = LEVEL_DATA[self.current_level]
             #self.down_speed_fast = self.down_speed * 0.3
             #self.timers['vertical move'].duration = self.down_speed
@@ -47,25 +39,16 @@ class Game():
     def check_game_over(self):
         for block in self.tet.blocks:
             if block.pos.y < 0:
-                print(f"You reached the {self.current_level} level with a score of {self.current_score}!")
-                exit()
+                return True
 
     def create_new_tet(self):
-        self.check_game_over()
         self.check_finished_rows()
 
         self.tet = Tet(self.get_next_shape(), self.sprites, self.create_new_tet, self.map)
-        #self.tet = Tet('I', self.sprites, self.create_new_tet, self.map)
-
-    def timer_update(self):
-        for timer in self.timers.values():
-            timer.update()
 
     def move_down(self, current_frame):
-        #print(current_frame)
         if current_frame % FRAME_SPEED == 0:
             self.tet.move_down()
-            #print("moving down")
 
     def draw_grid(self):
         for coloumn in range(1, COLUMNS):
@@ -76,29 +59,6 @@ class Game():
             pygame.draw.line(self.surface, "white", (0, y), (GAME_WIDTH, y), 1)
 
     def input(self, action):
-        '''
-        keys = pygame.key.get_pressed()
-        if not self.timers['horizontal move'].active:
-            if keys[pygame.K_LEFT]:
-                self.tet.move_horizontal(-1)
-                self.timers['horizontal move'].activate()
-            if keys[pygame.K_RIGHT]:
-                self.tet.move_horizontal(1)
-                self.timers['horizontal move'].activate()
-        
-        if keys[pygame.K_DOWN] and not self.down_pressed:
-            self.down_pressed = True
-            self.timers['vertical move'].duration = self.down_speed_fast
-        if self.down_pressed and not keys[pygame.K_DOWN]:
-            self.down_pressed = False
-            self.timers['vertical move'].duration = self.down_speed        
-
-        if not self.timers['rotate'].active:
-            if keys[pygame.K_UP]:
-                self.tet.rotate()
-                self.timers['rotate'].activate()
-        '''
-            
         if action == 0:
             pass
         elif action == 1:
@@ -113,25 +73,24 @@ class Game():
         for i, row in enumerate(self.map):
             if all(row):
                 delete_rows.append(i)
-        
+
         if delete_rows:
             for delete_row in delete_rows:
                 for block in self.map[delete_row]:
                     block.kill()
-        
+
                 for row in self.map:
                     for block in row:
                         if block and block.pos.y < delete_row:
                             block.pos.y += 1
-            
+
             self.map = [[0 for x in range(COLUMNS)] for y in range(ROWS)]
             for block in self.sprites:
                 self.map[int(block.pos.y)][int(block.pos.x)] = block
 
             self.score_update(len(delete_rows))
 
-    def run(self, action, current_frame) -> None:
-        self.timer_update()
+    def run(self, action, current_frame):
         self.sprites.update()
 
         self.input(action)
@@ -143,6 +102,8 @@ class Game():
         self.draw_grid()
         self.display_surface.blit(self.surface, (PADDING, PADDING))
         pygame.draw.rect(self.display_surface, "white", self.rect, 2, 2)
+
+        return not self.check_game_over()
 
 class Tet():
     def __init__(self, shape, group, create_new_tet, map) -> None:
@@ -156,7 +117,7 @@ class Tet():
         self.blocks = []
         for pos in self.block_positions:
             self.blocks.append(Block(group, pos, self.color))
-    
+
     def rotate(self):
         if self.shape != 'O':
             pivot_pos = self.blocks[0].pos
@@ -182,7 +143,7 @@ class Tet():
             return True
         else:
             return False
-    
+
     def vertical_collide(self):
         collision_list = []
         for block in self.blocks:
@@ -207,7 +168,7 @@ class Tet():
             self.create_new_tet()
 
 class Block(pygame.sprite.Sprite):
-    
+
     def __init__(self, group, position, color):
         super().__init__(group)
         self.image = pygame.Surface((CELL_SIZE,CELL_SIZE))
@@ -218,14 +179,14 @@ class Block(pygame.sprite.Sprite):
         x = self.pos.x * CELL_SIZE
         y = self.pos.y * CELL_SIZE
         self.rect = self.image.get_rect(topleft = (x, y))
-    
+
     def rotate(self, pivot_pos):
         return pivot_pos + (self.pos - pivot_pos).rotate(90)
 
     def horizontal_collide(self, x, map):
         if not COLUMNS > x >= 0:
             return True
-        
+
         if map[int(self.pos.y)][x]:
             return True
         return False
@@ -233,7 +194,7 @@ class Block(pygame.sprite.Sprite):
     def vertical_collide(self, y, map):
         if not y < ROWS:
             return True
-        
+
         if y >= 0 and map[y][int(self.pos.x)]:
             return True
         return False
