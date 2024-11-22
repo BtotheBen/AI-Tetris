@@ -1,5 +1,6 @@
 import torch
 import main
+import time
 
 n_actions = 4 # TODO
 n_observations = 204 # TODO
@@ -14,6 +15,7 @@ def get_state():
 
 # execute one step, returns tuple (observation, reward, terminated)
 def step(action):
+    #time.sleep(0.100)
     reward, terminated = m.run(action)
     return get_state(), reward, terminated
 

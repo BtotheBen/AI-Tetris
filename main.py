@@ -29,6 +29,32 @@ class Main():
         self.score.level = level
 
     def get_state(self):
+        new_map = [[0 for x in range(COLUMNS)] for y in range(ROWS)]
+        for row_index, row in enumerate(self.game.map):
+            for colo_index, point in enumerate(row):
+                if not point == 0:
+                    new_map[row_index][colo_index] = 2
+    
+        for block in self.game.tet.blocks:
+            if int(block.pos.y) >= 0:
+                new_map[int(block.pos.y)][int(block.pos.x)] = 1
+        
+        #self.print_map(new_map)
+        #print(self.next_shape)
+
+        next_shapes_index = []
+        for next_shape in self.next_shape:
+            next_shapes_index.append(TETS[next_shape]['index'])
+        #print(next_shapes_index)
+
+        ret = []
+        for _ in new_map: ret.extend(_)
+        ret.extend(next_shapes_index)
+        ret.append(self.score.score)
+
+        return ret
+
+
         new_map = [0 for _ in range(ROWS*COLUMNS)]
         for row_index, row in enumerate(self.game.map):
             for colo_index, point in enumerate(row):
@@ -41,6 +67,8 @@ class Main():
 
         for next_shape in self.next_shape:
                 new_map.append(TETS[next_shape]['index'])
+
+        new_map.append(self.score.score)
 
         return new_map
 
@@ -58,4 +86,4 @@ class Main():
         self.get_state()
 
         pygame.display.update()
-        return 10 + self.score.score - prev_score, terminated
+        return 5 + (self.score.score - prev_score)*100 + self.game.tet.blocks[0].pos.y, terminated

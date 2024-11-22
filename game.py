@@ -25,6 +25,9 @@ class Game():
 
         self.cyclenumber = 0
 
+        self.terminated = False
+
+
     def score_update(self, num_lines):
         self.current_score += SCORE_DATA[num_lines] * self.current_level
         if self.current_score / 100 > self.current_level:
@@ -39,11 +42,12 @@ class Game():
     def check_game_over(self):
         for block in self.tet.blocks:
             if block.pos.y < 0:
-                return True
+                print(f"You reached the {self.current_level} level with a score of {self.current_score}!")
+                self.terminated = True
 
     def create_new_tet(self):
+        self.check_game_over()
         self.check_finished_rows()
-
         self.tet = Tet(self.get_next_shape(), self.sprites, self.create_new_tet, self.map)
 
     def move_down(self, current_frame):
@@ -103,7 +107,8 @@ class Game():
         self.display_surface.blit(self.surface, (PADDING, PADDING))
         pygame.draw.rect(self.display_surface, "white", self.rect, 2, 2)
 
-        return not self.check_game_over()
+
+        return self.terminated
 
 class Tet():
     def __init__(self, shape, group, create_new_tet, map) -> None:

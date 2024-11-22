@@ -2,9 +2,12 @@ import math
 import random
 from collections import namedtuple, deque
 from itertools import count
-
+import pickle
+import time
+import signal
+import os
 import tetris
-
+import sys
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -38,9 +41,9 @@ class ReplayMemory(object):
 class DQN(nn.Module):
     def __init__(self, n_observations, n_actions):
         super(DQN, self).__init__()
-        self.layer1 = nn.Linear(n_observations, 128)
-        self.layer2 = nn.Linear(128, 128)
-        self.layer3 = nn.Linear(128, n_actions)
+        self.layer1 = nn.Linear(n_observations, 256)
+        self.layer2 = nn.Linear(256, 256)
+        self.layer3 = nn.Linear(256, n_actions)
 
     # Called with either one element to determine next action, or a batch
     # during optimization. Returns tensor([[left0exp,right0exp]...]).
@@ -50,13 +53,13 @@ class DQN(nn.Module):
         return self.layer3(x)
 
 
-BATCH_SIZE = 128
+BATCH_SIZE = 256
 GAMMA = 0.99
 EPS_START = 0.9
 EPS_END = 0.05
 EPS_DECAY = 1000
 TAU = 0.005
-LR = 1e-4
+LR = 1e-3
 
 n_actions = tetris.n_actions
 n_observations = tetris.n_observations
@@ -69,6 +72,14 @@ optimizer = optim.AdamW(policy_net.parameters(), lr=LR, amsgrad=True)
 memory = ReplayMemory(10000)
 
 steps_done = 0
+
+save_to_file = False
+
+def sigint_handler(signal, frame):
+    global save_to_file
+    save_to_file = True
+
+signal.signal(signalnum=signal.SIGINT, handler=sigint_handler)
 
 def select_action(state):
     global steps_done
@@ -136,7 +147,7 @@ def train_once():
     tetris.reset()
     state = torch.tensor(tetris.get_state(), dtype=torch.float32, device = torch.device(
                             "cuda" if torch.cuda.is_available() else
-                            " mps" if torch.backends.mps.is_available() else
+                            "mps" if torch.backends.mps.is_available() else
                             "cpu"
 )).unsqueeze(0)
     for t in count():
@@ -163,6 +174,10 @@ def train_once():
             target_net_state_dict[key] = policy_net_state_dict[key]*TAU + target_net_state_dict[key]*(1-TAU)
         target_net.load_state_dict(target_net_state_dict)
 
+        if save_to_file:
+            save_model()
+            exit()
+
         if terminated:
             break
 
@@ -170,8 +185,26 @@ def train_model(num_episodes):
     for i_episode in range(num_episodes):
         train_once()
 
+def save_model():
+    with open(f"saved_models/model_{time.time()}", "wb") as f:
+        pickle.dump(policy_net, f)
+
+def load_model(file):
+    with open(file, "rb") as f:
+        temp_net: DQN = pickle.load(f)
+
+        global policy_net, target_net
+        policy_net.load_state_dict(temp_net.state_dict())
+        target_net.load_state_dict(policy_net.state_dict())
+
+
 if torch.cuda.is_available() or torch.backends.mps.is_available():
     num_episodes = 600
 else:
     num_episodes = 50
+
+if len(sys.argv) >= 2:
+    load_model(sys.argv[1])
+
 train_model(num_episodes)
+save_model()
