@@ -16,6 +16,7 @@ class Game():
 
         self.map = [[0 for x in range(COLUMNS)] for y in range(ROWS)]
         self.tet = Tet(choice(list(TETS.keys())), self.sprites, self.create_new_tet, self.map)
+        #MAIN_TET
 
         self.down_speed = UPDATE_START_SPEED
         self.down_speed_fast = UPDATE_START_SPEED * 0.3
@@ -94,19 +95,20 @@ class Game():
 
             self.score_update(len(delete_rows))
 
-    def run(self, action, current_frame):
+    def run(self, action, current_frame, draw):
         self.sprites.update()
 
         self.input(action)
         self.move_down(current_frame)
 
         self.sprites.update()
-        self.surface.fill("black")
-        self.sprites.draw(self.surface)
-        self.draw_grid()
-        self.display_surface.blit(self.surface, (PADDING, PADDING))
-        pygame.draw.rect(self.display_surface, "white", self.rect, 2, 2)
 
+        if draw:
+            self.surface.fill("black")
+            self.sprites.draw(self.surface)
+            #self.draw_grid()
+            self.display_surface.blit(self.surface, (PADDING, PADDING))
+            pygame.draw.rect(self.display_surface, "white", self.rect, 2, 2)
 
         return self.terminated
 

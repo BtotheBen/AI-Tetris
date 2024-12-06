@@ -12,6 +12,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+import pygame
+
+pygame.init()
 
 device = torch.device(
     "cuda" if torch.cuda.is_available() else
@@ -38,28 +41,32 @@ class ReplayMemory(object):
         return len(self.memory)
 
 
+NEURON_AMOUNT = 32
+
 class DQN(nn.Module):
     def __init__(self, n_observations, n_actions):
         super(DQN, self).__init__()
-        self.layer1 = nn.Linear(n_observations, 256)
-        self.layer2 = nn.Linear(256, 256)
-        self.layer3 = nn.Linear(256, n_actions)
+        self.layer1 = nn.Linear(n_observations, NEURON_AMOUNT)
+        self.layer2 = nn.Linear(NEURON_AMOUNT, NEURON_AMOUNT)
+        self.layer3 = nn.Linear(NEURON_AMOUNT, NEURON_AMOUNT)
+        self.layer4 = nn.Linear(NEURON_AMOUNT, n_actions)
 
     # Called with either one element to determine next action, or a batch
     # during optimization. Returns tensor([[left0exp,right0exp]...]).
     def forward(self, x):
         x = F.relu(self.layer1(x))
         x = F.relu(self.layer2(x))
-        return self.layer3(x)
+        x = F.relu(self.layer3(x))
+        return self.layer4(x)
 
 
-BATCH_SIZE = 256
+BATCH_SIZE = 512
 GAMMA = 0.99
 EPS_START = 0.9
-EPS_END = 0.05
+EPS_END = 0.2
 EPS_DECAY = 1000
 TAU = 0.005
-LR = 1e-3
+LR = 1e-4
 
 n_actions = tetris.n_actions
 n_observations = tetris.n_observations
@@ -68,7 +75,7 @@ policy_net = DQN(n_observations, n_actions).to(device)
 target_net = DQN(n_observations, n_actions).to(device)
 target_net.load_state_dict(policy_net.state_dict())
 
-optimizer = optim.AdamW(policy_net.parameters(), lr=LR, amsgrad=True)
+optimizer = optim.AdamW(policy_net.parameters(), lr=LR, amsgrad=False)
 memory = ReplayMemory(10000)
 
 steps_done = 0
@@ -81,12 +88,53 @@ def sigint_handler(signal, frame):
 
 signal.signal(signalnum=signal.SIGINT, handler=sigint_handler)
 
+started = 0
+control = True
+
 def select_action(state):
+    global started
+    global control
+    started += 1
+    if started > 500 and control:
+        while True and control:
+            ret = None
+        
+            events = pygame.event.get()
+            for event in events:
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_LEFT:
+                        ret = 1
+                    elif event.key == pygame.K_RIGHT:
+                        ret = 2
+                    elif event.key == pygame.K_UP:
+                        ret = 3
+                    elif event.key == pygame.K_r:
+                        global save_to_file
+                        save_to_file = True
+                    elif event.key == pygame.K_g:
+                        control = False
+                    
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_DOWN]:
+                ret = 0
+
+            if ret != None:
+                return torch.tensor([[ret]], device=device, dtype=torch.long)
+
+    events = pygame.event.get()
+    for event in events:
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_g:
+                control = True
+            elif event.key == pygame.K_d:
+                        tetris.change_display()
+
     global steps_done
     sample = random.random()
     eps_threshold = EPS_END + (EPS_START - EPS_END) * \
         math.exp(-1. * steps_done / EPS_DECAY)
     steps_done += 1
+
     if sample > eps_threshold:
         with torch.no_grad():
             # t.max(1) will return the largest column value of each row.
@@ -143,6 +191,8 @@ def optimize_model():
     torch.nn.utils.clip_grad_value_(policy_net.parameters(), 100)
     optimizer.step()
 
+counter = 0
+
 def train_once():
     tetris.reset()
     state = torch.tensor(tetris.get_state(), dtype=torch.float32, device = torch.device(
@@ -150,6 +200,7 @@ def train_once():
                             "mps" if torch.backends.mps.is_available() else
                             "cpu"
 )).unsqueeze(0)
+    print("stsr")
     for t in count():
         action = select_action(state)
         observation, reward, terminated = tetris.step(action.item())
@@ -164,7 +215,10 @@ def train_once():
 
         state = next_state
 
-        optimize_model()
+        global counter
+        if counter % 100 == 0:
+            optimize_model()
+        counter += 1
 
         # Soft update of the target network's weights
         # θ′ ← τ θ + (1 −τ )θ′
@@ -182,16 +236,24 @@ def train_once():
             break
 
 def train_model(num_episodes):
-    for i_episode in range(num_episodes):
+    #for i_episode in range(num_episodes):
+    while True:
         train_once()
 
 def save_model():
     with open(f"saved_models/model_{time.time()}", "wb") as f:
-        pickle.dump(policy_net, f)
+        pickle.dump({"policy_net": policy_net, "memory": memory, "steps_done": steps_done}, f)
 
-def load_model(file):
+def load_model(file, keep = True):
     with open(file, "rb") as f:
-        temp_net: DQN = pickle.load(f)
+        global steps_done, memory
+        t = pickle.load(f)
+        temp_net = t["policy_net"]
+        memory = t["memory"]
+        if keep:
+            steps_done = t["steps_done"]
+
+        """ temp_net = pickle.load(f) """
 
         global policy_net, target_net
         policy_net.load_state_dict(temp_net.state_dict())
@@ -203,8 +265,12 @@ if torch.cuda.is_available() or torch.backends.mps.is_available():
 else:
     num_episodes = 50
 
-if len(sys.argv) >= 2:
+if len(sys.argv) == 2:
     load_model(sys.argv[1])
+elif len(sys.argv) == 3:
+        load_model(sys.argv[1], sys.argv[2])
+        
+
 
 train_model(num_episodes)
 save_model()
