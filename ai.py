@@ -192,9 +192,15 @@ def optimize_model():
     optimizer.step()
 
 counter = 0
+<<<<<<< HEAD
+games = 0
+=======
+>>>>>>> f5d1006fe14654f50604f19b8e94d341edafcee3
 
 def train_once():
-    tetris.reset()
+    global games
+    games += 1
+    tetris.reset(games)
     state = torch.tensor(tetris.get_state(), dtype=torch.float32, device = torch.device(
                             "cuda" if torch.cuda.is_available() else
                             "mps" if torch.backends.mps.is_available() else

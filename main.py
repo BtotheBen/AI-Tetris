@@ -12,7 +12,14 @@ class Main():
         pygame.display.set_caption('TETRIS')
         self.display_surface = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
 
+<<<<<<< HEAD
+        if DRAW_MAIN:
+            self.next_shape = [MAIN_TET for shape in range(3)] #
+        else: 
+            self.next_shape = [random.choice(list(TETS.keys())) for shape in range(3)]
+=======
         self.next_shape = [random.choice(list(TETS.keys())) for shape in range(3)] #MAIN_TET
+>>>>>>> f5d1006fe14654f50604f19b8e94d341edafcee3
 
         self.game = Game(self.get_next_shape, self.update_score)
         self.score = Score()
@@ -20,13 +27,21 @@ class Main():
         self.draw = False
         
         self.current_frame = 0
+        self.game_number = 0
 
         if self.draw:
             pygame.display.update()
 
     def get_next_shape(self):
         next_shape = self.next_shape.pop(0)
+<<<<<<< HEAD
+        if DRAW_MAIN:
+            self.next_shape.append(MAIN_TET)
+        else:
+            self.next_shape.append(random.choice(list(TETS.keys()))) #MAIN_TET
+=======
         self.next_shape.append(random.choice(list(TETS.keys()))) #MAIN_TET
+>>>>>>> f5d1006fe14654f50604f19b8e94d341edafcee3
 
         return next_shape
 
@@ -182,7 +197,12 @@ class Main():
 
         #Calculate Reward
         reward = 1
+<<<<<<< HEAD
+        reward += ((self.score.score - prev_score)/4)**2 * COLUMNS 
+
+=======
         reward += ((self.score.score - prev_score)/40)**2 * COLUMNS 
+>>>>>>> f5d1006fe14654f50604f19b8e94d341edafcee3
 
         reward += self.bumpiness_reward()
         reward += self.calc_height_block_reward()
@@ -192,5 +212,10 @@ class Main():
             reward -= 20
 
         os.system('clear')
+<<<<<<< HEAD
+        print("Reward: " + str(reward))
+        print("Current Game: " + str(self.game_number))
+=======
         print(reward)
+>>>>>>> f5d1006fe14654f50604f19b8e94d341edafcee3
         return reward, terminated
