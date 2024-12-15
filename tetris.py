@@ -13,10 +13,7 @@ def reset(game_number = 0):
     global display_draw
     m = main.Main()
     m.draw = display_draw
-<<<<<<< HEAD
     m.game_number = game_number
-=======
->>>>>>> f5d1006fe14654f50604f19b8e94d341edafcee3
 
 def get_state():
     return m.get_state()

@@ -18,7 +18,6 @@ pygame.init()
 
 device = torch.device(
     "cuda" if torch.cuda.is_available() else
-    "mps" if torch.backends.mps.is_available() else
     "cpu"
 )
 
@@ -89,7 +88,7 @@ def sigint_handler(signal, frame):
 signal.signal(signalnum=signal.SIGINT, handler=sigint_handler)
 
 started = 0
-control = True
+control = False
 
 def select_action(state):
     global started
@@ -98,7 +97,7 @@ def select_action(state):
     if started > 500 and control:
         while True and control:
             ret = None
-        
+
             events = pygame.event.get()
             for event in events:
                 if event.type == pygame.KEYDOWN:
@@ -113,7 +112,7 @@ def select_action(state):
                         save_to_file = True
                     elif event.key == pygame.K_g:
                         control = False
-                    
+
             keys = pygame.key.get_pressed()
             if keys[pygame.K_DOWN]:
                 ret = 0
@@ -192,10 +191,7 @@ def optimize_model():
     optimizer.step()
 
 counter = 0
-<<<<<<< HEAD
 games = 0
-=======
->>>>>>> f5d1006fe14654f50604f19b8e94d341edafcee3
 
 def train_once():
     global games
@@ -203,7 +199,6 @@ def train_once():
     tetris.reset(games)
     state = torch.tensor(tetris.get_state(), dtype=torch.float32, device = torch.device(
                             "cuda" if torch.cuda.is_available() else
-                            "mps" if torch.backends.mps.is_available() else
                             "cpu"
 )).unsqueeze(0)
     print("stsr")
@@ -241,42 +236,28 @@ def train_once():
         if terminated:
             break
 
-def train_model(num_episodes):
-    #for i_episode in range(num_episodes):
+def train_model():
+    i = 0
     while True:
+        i += 1
+        if i > 100000:
+            i = 0
+            save_model()
         train_once()
 
 def save_model():
-    with open(f"saved_models/model_{time.time()}", "wb") as f:
-        pickle.dump({"policy_net": policy_net, "memory": memory, "steps_done": steps_done}, f)
+    torch.save(policy_net.state_dict(), f"saved_models/model_{time.time()}")
 
 def load_model(file, keep = True):
-    with open(file, "rb") as f:
-        global steps_done, memory
-        t = pickle.load(f)
-        temp_net = t["policy_net"]
-        memory = t["memory"]
-        if keep:
-            steps_done = t["steps_done"]
-
-        """ temp_net = pickle.load(f) """
-
-        global policy_net, target_net
-        policy_net.load_state_dict(temp_net.state_dict())
-        target_net.load_state_dict(policy_net.state_dict())
-
-
-if torch.cuda.is_available() or torch.backends.mps.is_available():
-    num_episodes = 600
-else:
-    num_episodes = 50
+    policy_net.load_state_dict(torch.load(file))
+    policy_net.eval()
 
 if len(sys.argv) == 2:
     load_model(sys.argv[1])
 elif len(sys.argv) == 3:
         load_model(sys.argv[1], sys.argv[2])
-        
 
 
-train_model(num_episodes)
+
+train_model()
 save_model()

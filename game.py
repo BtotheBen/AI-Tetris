@@ -15,16 +15,11 @@ class Game():
         self.sprites = pygame.sprite.Group()
 
         self.map = [[0 for x in range(COLUMNS)] for y in range(ROWS)]
-<<<<<<< HEAD
 
         if DRAW_MAIN:
             self.tet = Tet(MAIN_TET, self.sprites, self.create_new_tet, self.map)
         else: 
             self.tet = Tet(choice(list(TETS.keys())), self.sprites, self.create_new_tet, self.map)
-=======
-        self.tet = Tet(choice(list(TETS.keys())), self.sprites, self.create_new_tet, self.map)
-        #MAIN_TET
->>>>>>> f5d1006fe14654f50604f19b8e94d341edafcee3
 
         self.down_speed = UPDATE_START_SPEED
         self.down_speed_fast = UPDATE_START_SPEED * 0.3
@@ -114,7 +109,7 @@ class Game():
         if draw:
             self.surface.fill("black")
             self.sprites.draw(self.surface)
-            #self.draw_grid()
+            self.draw_grid()
             self.display_surface.blit(self.surface, (PADDING, PADDING))
             pygame.draw.rect(self.display_surface, "white", self.rect, 2, 2)
 
